@@ -1,140 +1,159 @@
-'use strict';
 
-var uuid = require('./utils').uuid;
+class SimpleDi {
 
-if (typeof Function.prototype.bind === 'undefined') {
-  Function.prototype.bind = require('function-bind');
+    /**
+     * @param {typeof T} Constructor
+     * @return {function(*): T}
+     * @template T
+     */
+    static withNew(Constructor) {
+        return function() {
+            return new Constructor(...arguments);
+        };
+    }
+
+    /**
+     * @param {T} obj
+     * @return {function(): T}
+     * @template T
+     */
+    static always(obj) {
+        return () => obj;
+    }
+
+    /**
+     * @param {function:T} factory
+     * @return {function:T}
+     * @template T
+     */
+    static once(factory) {
+        let instance;
+        return function () {
+            return instance || (instance = factory.call({}, ...arguments));
+        };
+    }
+
+    /**
+     * @param {typeof T} Constructor
+     * @return {function: T}
+     * @template T
+     */
+    static withNewOnce(Constructor) {
+        let instance;
+        return function () {
+            return instance || (instance = SimpleDi.withNew(Constructor)(...arguments));
+        };
+    }
+
+    constructor() {
+        /** @type {Map<string, SimpleDiRegistryEntry>} */
+        this._registry = new Map();
+    }
+
+    /**
+     * @param {string} name
+     * @param {function} factory
+     * @param {?string[]} [dependencies] - optional array of dependency names
+     * @param {boolean} [overwrite]
+     */
+    register(name, factory, dependencies, overwrite) {
+        if (overwrite !== true && this._registry.has(name)) {
+            throw new Error('A dependency with this name is already registered!');
+        }
+        if (typeof factory !== 'function') {
+            throw new Error('Factory must be a function!');
+        }
+        if (dependencies && (!Array.isArray(dependencies) || !dependencies.every(s => typeof s === 'string'))) {
+            throw new Error('Invalid dependencies array!');
+        }
+        this._registry.set(name, {
+            name,
+            factory,
+            dependencies: (dependencies && dependencies.length) ? dependencies : null,
+            resolvedCounter: 0
+        });
+    }
+
+    registerBulk(deps) {
+        for (let dep of deps) {
+            this.register(...dep);
+        }
+    }
+
+    /**
+     * @param {string} name
+     * @param {any[]} [args]
+     * @return {*}
+     */
+    get(name, ...args) {
+        return this._resolve(name, args);
+    }
+
+    /**
+     * @param {string} name
+     * @param {?any[]} args
+     * @param {?string[]} [dependencyChain]
+     * @return {*}
+     * @private
+     */
+    _resolve(name, args, dependencyChain) {
+        const registryItem = this.getRegistryItem(name);
+        if (!registryItem) {
+            throw new Error('couldn\'t find module: ' + name);
+        }
+        registryItem.resolvedCounter++;
+
+        let resolvedDepsAndArgs = [];
+
+        if (registryItem.dependencies) {
+            if (dependencyChain) {
+                dependencyChain.push(name);
+            } else {
+                dependencyChain = [name];
+            }
+            for (let dependencyName of registryItem.dependencies) {
+                if (~dependencyChain.indexOf(dependencyName)) {
+                    throw new Error('Circular Dependency detected: ' + [...dependencyChain, dependencyName].join(' => '));
+                }
+                resolvedDepsAndArgs.push(this._resolve(dependencyName, null, dependencyChain));
+            }
+            dependencyChain.pop();
+        }
+
+        if (args && args.length) {
+            resolvedDepsAndArgs.push(...args);
+        }
+
+        return registryItem.factory.apply({}, resolvedDepsAndArgs);
+    }
+
+    /**
+     * @param {string} name
+     * @return {SimpleDiRegistryEntry}
+     */
+    getRegistryItem(name) {
+        return this._registry.get(name);
+    }
+
+    /**
+     * @return {Object<string, number>} - the returned object is a copy only
+     */
+    getResolvedDependencyCount() {
+        let map = {};
+        for (let entry of this._registry.values()) {
+            map[entry.name] = entry.resolvedCounter;
+        }
+        return map;
+    }
 }
 
-var _instanceCache = {};
-
-function SimpleDi() {
-  this._registry = {};
-  this._resolvedDependencies = {};
-}
-
-var proto = SimpleDi.prototype;
-
-proto.register = function(name, factory, dependencies, overwrite) {
-  if (overwrite !== true && typeof this._registry[name] !== 'undefined') {
-    throw new Error('A dependency with this name is already registered!');
-  }
-  if (typeof factory !== 'function') {
-    throw new Error('factory must be a function!');
-  }
-  this._registry[name] = {
-    name: name,
-    factory: factory,
-    dependencies: dependencies || []
-  };
-  this._resolvedDependencies[name] = 0;
-};
-
-proto.registerBulk = function(deps) {
-  for (var i = 0; i < deps.length; i++) {
-    this.register.apply(this, deps[i]);
-  }
-};
-
-proto.get = function() {
-  var args = Array.prototype.slice.call(arguments);
-  var name = args.shift();
-  return this._resolve(name, args);
-};
-
-proto._resolve = function(name, args, dependencyChain) {
-  var registryItem = this.getRegistryItem(name);
-  if (!registryItem) {
-    throw new Error('couldn\'t find module: ' + name);
-  }
-  if (!dependencyChain) {
-    dependencyChain = [];
-  }
-  dependencyChain.push(name);
-  this._countResolvedDependency(name);
-  var resolvedDeps = [];
-  var deps = registryItem.dependencies;
-  for (var i = 0; i < deps.length; i++) {
-    var clonedDepdencyChain = dependencyChain.slice(0);
-    var dependencyName = deps[i];
-    if (clonedDepdencyChain.indexOf(dependencyName) !== -1) {
-      var chain = this._stringifyDependencyChain(dependencyChain.concat([
-        dependencyName
-      ]));
-      throw new Error('Circular Dependency detected: ' + chain);
-    }
-    clonedDepdencyChain.push(dependencyChain);
-    resolvedDeps.push(this._resolve(dependencyName, [], dependencyChain));
-  }
-
-  resolvedDeps = resolvedDeps.concat(args);
-
-  var thisArg = {};
-  return registryItem.factory.apply(thisArg, resolvedDeps);
-};
-
-proto._stringifyDependencyChain = function(dependencyChain) {
-  return dependencyChain.join(' => ');
-};
-
-proto.getRegistryItem = function(name) {
-  return this._registry[name];
-};
-
-proto._countResolvedDependency = function(name) {
-  this._resolvedDependencies[name]++;
-};
-
-proto.getResolvedDependencyCount = function() {
-  return this._resolvedDependencies;
-};
-
-SimpleDi.withNew = function(Constructor) {
-  return function() {
-    var deps = Array.prototype.slice.call(arguments);
-    var thisArg = {};
-    var NewConstructor = Constructor.bind.apply(Constructor, [thisArg].concat(deps));
-    return new NewConstructor();
-  };
-};
-
-SimpleDi.always = function(obj) {
-  return function() {
-    return obj;
-  };
-};
-
-function callAndBindFactory(factory) {
-  return function() {
-    var deps = Array.prototype.slice.call(arguments);
-    var thisArg = {};
-    var boundFactory = factory.bind.apply(factory, [thisArg].concat(deps));
-    return boundFactory();
-  };
-}
-
-SimpleDi.once = function(factory) {
-  var boundFactory = callAndBindFactory(factory);
-  var id = uuid();
-  return function() {
-    if (!_instanceCache[id]) {
-      var thisArg = {};
-      _instanceCache[id] = boundFactory.apply(thisArg, arguments);
-    }
-    return _instanceCache[id];
-  };
-};
-
-SimpleDi.withNewOnce = function(Constructor) {
-  var constructorFactory = SimpleDi.withNew(Constructor);
-  var id = uuid();
-  return function() {
-    if (!_instanceCache[id]) {
-      var thisArg = {};
-      _instanceCache[id] = constructorFactory.apply(thisArg, arguments);
-    }
-    return _instanceCache[id];
-  };
-};
 
 module.exports = SimpleDi;
+
+/**
+ * @typedef {Object} SimpleDiRegistryEntry
+ * @property {string} name
+ * @property {function} factory
+ * @property {string[]|null} dependencies
+ * @property {number} resolvedCounter
+ */
