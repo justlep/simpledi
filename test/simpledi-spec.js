@@ -255,7 +255,9 @@ describe('SimpleDi', function () {
 
     describe('SimpleDi.once', function () {
         it('calls a factory once and then always returns the instance', function () {
+            let totalCalls = 0;
             function create() {
+                totalCalls++;
                 return {};
             }
 
@@ -265,6 +267,19 @@ describe('SimpleDi', function () {
             let foo2 = di.get('create');
 
             expect(foo1).toBe(foo2);
+            expect(totalCalls).toBe(1);
+        });
+
+        it('calls a factory only once even in case of falsy return values', function () {
+            let totalBarFactoryCalls = 0;
+            di.register('Bar', SimpleDi.once(createBar), []);
+            function createBar() {
+                totalBarFactoryCalls++;
+                return null;
+            }
+            expect(di.get('Bar')).toBe(null);
+            expect(di.get('Bar')).toBe(null);
+            expect(totalBarFactoryCalls).toBe(1);
         });
 
         it('returns always the same instance and resolves dependencies', function () {

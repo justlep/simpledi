@@ -1,4 +1,6 @@
 
+const TBD = Symbol();
+
 class SimpleDi {
 
     /**
@@ -27,9 +29,9 @@ class SimpleDi {
      * @template T
      */
     static once(factory) {
-        let instance;
+        let instance = TBD;
         return function () {
-            return instance || (instance = factory.call({}, ...arguments));
+            return (instance !== TBD) ? instance : (instance = factory.call({}, ...arguments));
         };
     }
 
