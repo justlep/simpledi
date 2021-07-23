@@ -1,10 +1,10 @@
 {
-  "name": "simpledi",
-  "version": "1.2.0",
+  "name": "simpledi-node",
+  "version": "2.0.0",
   "description": "A simple dependency injector",
   "main": "src/simpledi.js",
-  "config": {
-    "namespace": "simpleDi"
+  "engines": {
+    "node": ">=10"
   },
   "keywords": [
     "dependency",
@@ -13,18 +13,31 @@
     "injector"
   ],
   "scripts": {
-    "lint": "eslint --max-warnings 5 src/ test/",
-    "test": "jasmine test/*"
+    "lint": "eslint --max-warnings 5 src/ test/ example.js",
+    "pretest": "npm run lint",
+    "test": "jasmine test/*",
+    "prepare": "npm run test"
   },
-  "author": "Julian Hollmann <julian@fwdoperating.com>",
+  "author": {
+    "name": "Lennart Pegel",
+    "email": "github@justlep.net",
+    "url": "https://github.com/justlep"
+  },
+  "contributors": [
+    "Julian Hollmann <julian@fwdoperating.com>"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/fwdop/simpledi.git"
+    "url": "https://github.com/justlep/simpledi-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/justlep/simpledi-node/issues"
   },
   "devDependencies": {
     "eslint": "^7.30.0",
     "eslint-plugin-log-filenames": "^1.0.2",
-    "jasmine": "^3.8.0"
+    "jasmine": "^3.8.0",
+    "jasmine-spec-reporter": "^7.0.0"
   }
 }

@@ -1,125 +1,62 @@
 # SimpleDi
 
-![build](https://api.travis-ci.org/nerdbeere/simpledi.svg?branch=master)
-![dependencies](https://david-dm.org/nerdbeere/simpledi.svg)
+[![Build Status](https://api.travis-ci.com/justlep/simpledi-node.svg?branch=master)](https://travis-ci.com/justlep/simpledi-node)
+![dependencies](https://david-dm.org/justlep/simpledi-node.svg)
 
-SimpleDi is a very simple dependency injector.
+This is a fork and complete rewrite of [SimpleDi]([https://github.com/fwdop/simpledi), 
+a very simple dependency injector.
+
+Intended for Node 10+ environments.
 
 ## Features
 
-- **Simple API**
-- Fully **tested**
-- Tiny (**1.3kb** gzipped)
-- Works in any **ES3** compliant environment
+- Simple API
+- No dependencies
+- Fully tested
 - Helps you find unresolved dependencies with `getResolvedDependencyCount`
-- **Battle-tested** (used in real-world projects)
 
 ## Installation
 
-`npm install simpledi`
+```shell
+npm install simpledi-node
+```
 
-## Compatibility
+## API
 
-SimpleDi is compatible with ES3 compliant browsers
+### Create a SimpleDi instance
+```
+const SimpleDi = require('simpledi-node');
+const di = new SimpleDi(); 
+```
 
-## Api
+### Add dependency with factory function
+#### `di.registerWithFactory(name, factoryFn, dependencies, overwrite)`
+#### `di.registerWithFactoryOnce(name, factoryFn, dependencies, overwrite)`
 
-### `di.register(dependencyName, factoryFunction[, dependencies[, overwrite]])`
-
-#### Parameters:
-
-Name | Type | Description
+Parameter | Type | Description
 -----|------|------------
-dependencyName | `string` | The name of the dependency
-factoryFunction | `function` | A function that gets called when get is called
-dependencies | `array<string>` | *optional* An array of depdendency names
+name | `string` | The name of the dependency
+factoryFn | `function` | A function that gets called when `di.get(name)` is called
+dependencies | `string[]` | *optional* array of dependency names. The dependencies will be resolved and passed to the `factoryFn` when `di.get(name)` is called.
 overwrite | `boolean` | *optional* This allows to explicitly overwrite dependencies
 
-Adds a dependency to the registry.
-It throws an exception when a dependency with the same name already exists and overwrite true is not passed.
+### Add dependency with class constructor
 
-### `di.registerBulk(dependencies)`
+#### `di.registerWithNew(name, clazz, dependencies, overwrite)`
+#### `di.registerWithNewOnce(name, clazz, dependencies, overwrite)`
 
-#### Parameters:
-
-Name | Type | Description
+Parameter | Type | Description
 -----|------|------------
-dependencies | `array` | An array of dependencies containing arrays each containing parameters for `di.register`
+name | `string` | The name of the dependency
+clazz | `function` | A class or constructor function that gets instantiated when `di.get(name)` is called
+dependencies | `string[]` | *optional* array of dependency names. The dependencies will be resolved and passed to the constructor when `di.get(name)` is called.
+overwrite | `boolean` | *optional* This allows to explicitly overwrite dependencies
 
-#### Example:
+### Example
 
 ```javascript
-di.registerBulk([
-    ['foo', this.always({foo: true})],
-    ['Bar', this.withNew(Bar), ['foo']],
-]);
-```
-
-### `di.get(name[, arg1[, arg2[, ...]]])`
-
-#### Parameters:
-
-Name | Type | Description
------|------|------------
-dependencyName | `string` | The name of the dependency
-arg1, arg2, ... | `mixed` | All args defined after the name will also be injected
-
-Returns a previously registered dependency and resolves all dependencies.
-
-### `di.getResolvedDependencyCount()`
-
-Returns an object with numbers that state how often each dependency got resolved.
-
-```javascript
-
-// Example return value
-{ Foo: 1, Bar: 1, Baz: 1 }
-
-```
-
-## Built-in factory functions
-
-### `SimpleDi.always(objectOrFunction)`
-
-Name | Type | Description
------|------|------------
-objectOrFunction | `mixed` | Always returns this argument
-
-A factory function that always returns the first argument when `di.get` is called.
-
-### `SimpleDi.withNew(Constructor)`
-
-Name | Type | Description
------|------|------------
-Constructor | `function` | A constructor function
-
-When `di.get` is called this factory function will initialize the given constructor with new.
-
-### `SimpleDi.withNewOnce(Constructor)`
-
-Name | Type | Description
------|------|------------
-Constructor | `function` | A constructor function
-
-When `di.get` is called the *first time* this factory function will initialize
-the given constructor and for all upcoming calls it will always return the
-same instance. You can think of it as a singleton factory.
-
-### `SimpleDi.once(factory)`
-
-Name | Type | Description
------|------|------------
-factory | `function` | A factory function
-
-When `di.get` is called the *first time* this factory function will call
-the given factory and for all upcoming calls it will always return the
-same factory return value. You can think of it as a singleton factory.
-
-## Example 1
-
-```javascript
-var SimpleDi = require('simpledi');
-var di = new SimpleDi();
+var SimpleDi = require('simpledi-node');
+const di = new SimpleDi();
 
 function Engine(config) {
     this.hp = config.hp;
@@ -130,52 +67,91 @@ function Car(engine) {
     this.text = 'This car has ' + engine.hp + 'hp!';
 }
 
-di.register('Engine', SimpleDi.withNew(Engine), ['engineConfig']);
-di.register('engineConfig', SimpleDi.always({
+di.registerWithNew('Engine', Engine, ['engineConfig']);
+di.registerConstant('engineConfig', {
     hp: 120,
     maxSpeed: 200
-}));
-di.register('Car', SimpleDi.withNew(Car), ['Engine']);
+});
+di.registerWithNewOnce('Car', Car, ['Engine']);
 
-var car = di.get('Car');
+let car = di.get('Car'); 
 
-console.log(car.text);
+console.log(car.text); // This car has 120hp!
 ```
 
-## Example: Circular Dependency
+
+### Add constant dependency
+
+#### `di.registerConstant(name, value, overwrite)`
+Parameter | Type | Description
+-----|------|------------
+name | `string` | The name of the dependency
+value | `mixed` | A fix value to be returned whenever `di.get(name)` is called
+overwrite | `boolean` | *optional* This allows to explicitly overwrite dependencies
+
+
+#### `di.registerContants(keyValueMap, keyPrefix, overwrite)`
+Parameter | Type | Description
+-----|------|------------
+keyValueMap | `Map<string,*>` or `Object`  | An map or pojo whose (own) keys will be used to register the respective value as a constant
+prefix | `string` | *optional* prefix to precede the registered keys
+overwrite | `boolean` | *optional* This allows to explicitly overwrite dependencies
+
+##### Example:
 
 ```javascript
-di.register('foo', SimpleDi.always({
-    foo: true
-}), ['bar']);
+const CC = {foo: 1, bar: 2};
+di.registerConstants(CC);
+di.get('foo'); // returns 1
+di.registerConstants(CC, 'tmp.');
+di.get('tmp.bar'); // returns 2
+```
 
-di.register('bar', SimpleDi.always({
-    bar: true
-}), ['foo']);
+### Get a dependency
+#### `di.get(name[, arg1[, arg2[, ...]]])`
 
-di.get('foo'); // throws "Circular Dependency detected: foo => bar => foo"
+Returns a previously registered dependency and resolves all dependencies.  
+Throws an `Error` if the dependency is not registered. 
+
+Name | Type | Description
+-----|------|------------
+name | `string` | The name of the dependency
+arg1, arg2, ... | `mixed` | *optional* arguments that will be passed to the dependency's factory function or constructor _additionally to_ its dependencies   
+
+##### Example:
+```javascript
+const fn = function() { return [...arguments] };
+di.registerWithFactory('foo', fn, ['BAR']);
+di.registerConstant('BAR', 111);
+di.get('foo', 444, 555); // returns [111, 444, 555]
+```
+
+_NOTE:_ For dependencies registered via `registerWithNewOnce()` or `registerWithFactoryOnce()`, 
+ additional get-arguments (`arg1`, `arg2`, ...) are allowed only in the *first* invocation of `di.get()`. 
+An error is thrown otherwise.  
+You can suppress this error by calling `di.setIgnoreArgsPassedToFinalValue(true)`.
+
+##### Example for circular dependency (throws error):
+
+```javascript
+di.registerWithNew('A', class{}, ['B']);
+di.registerWithNew('B', class{}, ['C']);
+di.registerWithNew('C', class{}, ['A']);
+
+di.get('A'); // throws "Circular Dependency detected: A => B => C => A"
+```
+
+### Inspecting usages of dependencies
+### `di.getResolvedDependencyCount()`
+
+Returns an object with numbers that state how often each dependency got resolved, 
+regardless if either by direct `di.get()` call or as a transitive dependency.    
+
+```javascript
+// Example return value
+{Foo: 1, Bar: 5, Baz: 3}
 ```
 
 ## License
 
-The MIT License (MIT)
-
-Copyright (c) 2015 Julian Hollmann
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+[MIT](./LICENSE)
