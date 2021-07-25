@@ -151,12 +151,12 @@ class SimpleDi {
     }
 
     /**
-     * @return {Object<string, number>} - the returned object is a copy only
+     * @return {Map<string, number>} - map of dependency name -> # how often the dependency was resolved
      */
     getResolvedDependencyCount() {
-        let map = {};
-        for (const regItem of this._registry.values()) {
-            map[regItem.name] = regItem.resolvedCounter;
+        const map = new Map();
+        for (const {name, resolvedCounter} of this._registry.values()) {
+            map.set(name, resolvedCounter);
         }
         return map;
     }

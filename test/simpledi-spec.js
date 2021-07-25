@@ -71,11 +71,11 @@ describe('SimpleDi', function () {
     it('registers and gets a constructor using the helper factory', function () {
         function Foo() {}
         di.registerWithNew('Foo', Foo);
-        expect(di.get('Foo') instanceof Foo).toBe(true);
+        expect(di.get('Foo')).toBeInstanceOf(Foo);
 
         class Bar {}
         di.registerWithNew('Bar', Bar);
-        expect(di.get('Bar') instanceof Bar).toBe(true);
+        expect(di.get('Bar')).toBeInstanceOf(Bar);
     });
 
     it('resolves a dependency', function () {
@@ -87,7 +87,7 @@ describe('SimpleDi', function () {
         di.registerWithNew('Foo', Foo, ['Bar']);
         di.registerWithNew('Bar', Bar);
 
-        expect(di.get('Foo').bar instanceof Bar).toBe(true);
+        expect(di.get('Foo').bar).toBeInstanceOf(Bar);
     });
 
     it('throws when trying to resolve a non-existent dependency', function () {
@@ -141,7 +141,7 @@ describe('SimpleDi', function () {
         di.registerWithNew('Bar', Bar);
         di.registerWithNew('Baz', Baz);
 
-        expect(di.get('Foo').baz instanceof Baz).toBe(true);
+        expect(di.get('Foo').baz).toBeInstanceOf(Baz);
     });
 
     it('provides a static identity function that returns always the same object', function () {
@@ -181,7 +181,9 @@ describe('SimpleDi', function () {
         di.registerWithFactory('foo', () => obj);
 
         di.get('foo');
-        expect(di.getResolvedDependencyCount().foo).toBe(1);
+        const counterMap = di.getResolvedDependencyCount();
+        expect(counterMap).toBeInstanceOf(Map);
+        expect(counterMap.get('foo')).toBe(1);
     });
 
     it('counts how often dependencies where resolved with deep dependencies', function () {
@@ -191,7 +193,14 @@ describe('SimpleDi', function () {
 
         di.get('bar');
         di.get('foo');
-        expect(di.getResolvedDependencyCount()).toEqual({foo: 2, bar: 1});
+        di.get('foo');
+
+        expect([...di._registry.entries()].length).toBe(2);
+
+        const m = di.getResolvedDependencyCount();
+        expect(m.size).toBe(2);
+        expect(m.get('foo')).toBe(3);
+        expect(m.get('bar')).toBe(1);
     });
 
     it('resolves dependencies with transitive dependencies', function() {

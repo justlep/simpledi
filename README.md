@@ -55,7 +55,7 @@ overwrite | `boolean` | *optional* This allows to explicitly overwrite dependenc
 ### Example
 
 ```javascript
-var SimpleDi = require('simpledi-node');
+const SimpleDi = require('simpledi-node');
 const di = new SimpleDi();
 
 function Engine(config) {
@@ -142,14 +142,14 @@ di.get('A'); // throws "Circular Dependency detected: A => B => C => A"
 ```
 
 ### Inspecting usages of dependencies
-### `di.getResolvedDependencyCount()`
+### `di.getResolvedDependencyCount(): Map<string, number>`
 
-Returns an object with numbers that state how often each dependency got resolved, 
-regardless if either by direct `di.get()` call or as a transitive dependency.    
+Returns a `Map` of dependency names onto the number the dependency got resolved in total,
+including both direct `di.get()` calls and transitive resolving.    
 
 ```javascript
-// Example return value
-{Foo: 1, Bar: 5, Baz: 3}
+// Example
+console.warn(...di.getResolvedDependencyCount()); // [ 'foo', 3 ] [ 'bar', 1 ]
 ```
 
 ## License
