@@ -1,6 +1,6 @@
 {
   "name": "simpledi-node",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "A simple dependency injector",
   "main": "src/simpledi.js",
   "engines": {
@@ -15,7 +15,7 @@
   "scripts": {
     "lint": "eslint --max-warnings 5 src/ test/ example.js",
     "pretest": "npm run lint",
-    "test": "jasmine test/*",
+    "test": "istanbul cover node_modules/jasmine/bin/jasmine.js test/*",
     "prepare": "npm run test"
   },
   "author": {
@@ -37,6 +37,7 @@
   "devDependencies": {
     "eslint": "^7.30.0",
     "eslint-plugin-log-filenames": "^1.0.2",
+    "istanbul": "^0.4.5",
     "jasmine": "^3.8.0",
     "jasmine-spec-reporter": "^7.0.0"
   }

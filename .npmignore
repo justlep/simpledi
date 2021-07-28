@@ -2,3 +2,4 @@
 .editorconfig
 .eslintrc
 .travis.yml
+coverage/
